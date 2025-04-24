@@ -1,0 +1,337 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>i am the best</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background: linear-gradient(135deg, #232526 0%, #414345 100%);
+            margin: 0;
+            min-height: 100vh;
+            color: #f5f6fa;
+        }
+        .panel-container {
+            max-width: 900px;
+            margin: 40px auto;
+            background: #2d2f36;
+            border-radius: 18px;
+            box-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.37);
+            padding: 36px 32px 32px 32px;
+        }
+        .panel-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 32px;
+        }
+        .panel-title {
+            font-size: 2.2rem;
+            font-weight: 600;
+            letter-spacing: 1px;
+        }
+        .add-btn {
+            background: linear-gradient(90deg, #00c6ff 0%, #0072ff 100%);
+            color: #fff;
+            border: none;
+            border-radius: 8px;
+            padding: 12px 28px;
+            font-size: 1rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+        .add-btn:hover {
+            background: linear-gradient(90deg, #0072ff 0%, #00c6ff 100%);
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            background: #23242a;
+            border-radius: 12px;
+            overflow: hidden;
+        }
+        th, td {
+            padding: 16px 10px;
+            text-align: left;
+        }
+        th {
+            background: #23242a;
+            font-weight: 600;
+            color: #00c6ff;
+        }
+        tr {
+            border-bottom: 1px solid #393b44;
+        }
+        tr:last-child {
+            border-bottom: none;
+        }
+        td {
+            color: #f5f6fa;
+        }
+        .delete-btn {
+            background: #ff4b5c;
+            color: #fff;
+            border: none;
+            border-radius: 6px;
+            padding: 8px 18px;
+            font-size: 1rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: background 0.2s;
+            margin-top: 18px;
+        }
+        .delete-btn:disabled {
+            background: #a3a3a3;
+            cursor: not-allowed;
+        }
+        @media (max-width: 700px) {
+            .panel-container {
+                padding: 16px 4px;
+            }
+            .panel-title {
+                font-size: 1.3rem;
+            }
+            th, td {
+                padding: 10px 4px;
+                font-size: 0.95rem;
+            }
+            .add-btn, .delete-btn {
+                padding: 8px 12px;
+                font-size: 0.95rem;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="panel-container">
+        <div class="panel-header">
+            <span class="panel-title">i am the best ever</span>
+            <button class="add-btn" onclick="addKey()">+ Add Key</button>
+        </div>
+        <form id="keysForm" onsubmit="return false;">
+            <table>
+                <thead>
+                    <tr>
+                        <th><input type="checkbox" id="selectAll" onclick="toggleAll(this)"></th>
+                        <th>Key</th>
+                        <th>HWID</th>
+                        <th>Executor</th>
+                    </tr>
+                </thead>
+                <tbody id="keysTableBody">
+                    <!-- Dynamic rows here -->
+                </tbody>
+            </table>
+            <button class="delete-btn" id="deleteSelected" onclick="window.deleteSelected()" disabled>Delete Selected</button>
+        </form>
+    </div>
+    <script>
+        let keys = [];
+        let selectedKeys = new Set();
+
+        // Fetch keys from backend
+        async function fetchKeys() {
+            const res = await fetch('/api/keys');
+            return await res.json();
+        }
+
+        async function saveKeyToBackend(data) {
+            await fetch('/api/keys', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(data)
+            });
+        }
+
+        async function updateKeyOnBackend(idx, data) {
+            await fetch(`/api/keys/${idx}`, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(data)
+            });
+        }
+
+        async function deleteKeysOnBackend(keysArr) {
+            try {
+                console.log('Delete request:', keysArr);
+                const response = await fetch('/api/keys/delete', {
+                    method: 'DELETE',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ keysToDelete: keysArr })
+                });
+
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+
+                const result = await response.json();
+                console.log('Delete response:', result);
+                return result;
+            } catch (error) {
+                console.error('Delete failed:', error);
+                throw error;
+            }
+        }
+
+        async function renderTable() {
+            keys = await fetchKeys();
+            selectedKeys.clear();
+            const tbody = document.getElementById('keysTableBody');
+            tbody.innerHTML = '';
+            keys.forEach((item, idx) => {
+                const row = document.createElement('tr');
+                row.setAttribute('data-key', item.key);
+                row.innerHTML = `
+                    <td><input type="checkbox" class="row-select" data-key="${item.key}"></td>
+                    <td><span style="font-family:monospace;">${item.key}</span></td>
+                    <td><input type="text" value="${item.hwid}" onchange="updateHWID(${idx}, this.value)" style="width: 140px; background: #23242a; color: #f5f6fa; border: none; border-radius: 4px; padding: 4px 6px;"><button class='reset-btn' onclick='resetHWID(${idx})' style='margin-left:8px;background:#ffb347;color:#23242a;border:none;border-radius:4px;padding:4px 10px;font-weight:600;cursor:pointer;'>Reset</button></td>
+                    <td><input type="text" value="${item.executor}" onchange="updateExecutor(${idx}, this.value)" style="width: 120px; background: #23242a; color: #f5f6fa; border: none; border-radius: 4px; padding: 4px 6px;"></td>
+                `;
+                tbody.appendChild(row);
+            });
+
+            // Add event listeners for checkboxes
+            document.querySelectorAll('.row-select').forEach(cb => {
+                cb.addEventListener('change', function() {
+                    const key = this.getAttribute('data-key');
+                    if (this.checked) {
+                        selectedKeys.add(key);
+                    } else {
+                        selectedKeys.delete(key);
+                    }
+                    updateDeleteBtn();
+                });
+            });
+
+            // Reset "Select All" checkbox
+            document.getElementById('selectAll').checked = false;
+            updateDeleteBtn();
+        }
+
+        async function addKey() {
+            const newKey = { key: generateKey(), hwid: '', executor: '' };
+            await saveKeyToBackend(newKey);
+            await renderTable();
+            showMessage('Key added successfully!', 'success');
+        }
+
+        async function updateHWID(idx, value) {
+            await updateKeyOnBackend(idx, { hwid: value });
+        }
+
+        async function updateExecutor(idx, value) {
+            await updateKeyOnBackend(idx, { executor: value });
+        }
+
+        function generateKey() {
+            const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
+            let result = '';
+            for (let i = 0; i < 24; i++) {
+                result += chars.charAt(Math.floor(Math.random() * chars.length));
+            }
+            return result;
+        }
+
+        function toggleAll(source) {
+            const checkboxes = document.querySelectorAll('.row-select');
+            checkboxes.forEach(cb => {
+                cb.checked = source.checked;
+                const key = cb.getAttribute('data-key');
+                if (source.checked) {
+                    selectedKeys.add(key);
+                } else {
+                    selectedKeys.delete(key);
+                }
+            });
+            updateDeleteBtn();
+        }
+
+        function updateDeleteBtn() {
+            document.getElementById('deleteSelected').disabled = selectedKeys.size === 0;
+        }
+
+        // Define deleteSelected on window object
+        window.deleteSelected = async function() {
+            if (selectedKeys.size === 0) return;
+            
+            console.group('Delete Selected Operation');
+            console.log('Selected keys:', Array.from(selectedKeys));
+            
+            if (!confirm('Are you sure you want to delete the selected keys?')) {
+                console.log('Deletion cancelled by user');
+                console.groupEnd();
+                return;
+            }
+            
+            const keysToDelete = Array.from(selectedKeys);
+            const deleteBtn = document.getElementById('deleteSelected');
+            
+            try {
+                deleteBtn.disabled = true;
+                console.log('Sending delete request...');
+                const updatedKeys = await deleteKeysOnBackend(keysToDelete);
+                
+                console.log('Received updated keys:', updatedKeys);
+                if (!Array.isArray(updatedKeys)) {
+                    throw new Error('Invalid response: expected array');
+                }
+                
+                keys = updatedKeys;
+                selectedKeys.clear();
+                await renderTable();
+                
+                showMessage(`Successfully deleted ${keysToDelete.length} key(s)`, 'success');
+            } catch (error) {
+                console.error('Delete failed:', error);
+                showMessage(`Delete failed: ${error.message}`, 'error');
+            } finally {
+                deleteBtn.disabled = false;
+                console.groupEnd();
+            }
+        };
+
+        // Make other functions global as well
+        window.addKey = addKey;
+        window.updateHWID = updateHWID;
+        window.updateExecutor = updateExecutor;
+        window.resetHWID = resetHWID;
+        window.toggleAll = toggleAll;
+
+        async function resetHWID(idx) {
+            await updateKeyOnBackend(idx, { hwid: "" });
+            await renderTable();
+            showMessage('HWID reset.', 'success');
+        }
+
+        function showMessage(msg, type) {
+            let msgDiv = document.getElementById('msgDiv');
+            if (!msgDiv) {
+                msgDiv = document.createElement('div');
+                msgDiv.id = 'msgDiv';
+                msgDiv.style.position = 'fixed';
+                msgDiv.style.top = '20px';
+                msgDiv.style.left = '50%';
+                msgDiv.style.transform = 'translateX(-50%)';
+                msgDiv.style.zIndex = '9999';
+                msgDiv.style.padding = '14px 32px';
+                msgDiv.style.borderRadius = '8px';
+                msgDiv.style.fontWeight = '600';
+                msgDiv.style.fontSize = '1.1rem';
+                msgDiv.style.boxShadow = '0 2px 12px rgba(0,0,0,0.18)';
+                document.body.appendChild(msgDiv);
+            }
+            msgDiv.innerText = msg;
+            msgDiv.style.background = type === 'success' ? '#00c6ff' : '#ff4b5c';
+            msgDiv.style.color = '#fff';
+            msgDiv.style.display = 'block';
+            setTimeout(() => { msgDiv.style.display = 'none'; }, 2000);
+        }
+
+        // Initial render
+        renderTable();
+    </script>
+</body>
+</html>
