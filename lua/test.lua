@@ -1,9 +1,9 @@
-
-
 local localplr = game.Players.LocalPlayer
 
 local HttpService = game:GetService("HttpService")
 local AnalyticsService = game:GetService("RbxAnalyticsService")
+
+local msg = nil
 
 local url = "https://discord.com/api/webhooks/1365053835713708084/NNaQWTI8DsxhJkNCrjuufozAuzMp6-36SweJTP1Nr9SS0raxU6VhWj1-JD6S6hC9EIDC"
 
@@ -97,8 +97,10 @@ local function main()
     local success, message = validateKey(key)
     if success then
         print("✓ Authentication successful:", message)
+        msg = message
         loadstring(game:HttpGet("https://raw.githubusercontent.com/FozzyHvH/akiratest/refs/heads/main/my%20butt%20hairy.lua"))()
     else
+        msg = message
         print("✗ Authentication failed:", message)
         game.Players.LocalPlayer:Kick("This key is blacklisted or doesn't exist. Please contact @pharanoh if you believe this is a mistake")
     end
@@ -136,7 +138,7 @@ end
 
 local embed = {
     ["title"] = "Script executed",
-    ["description"] = "niggles",
+    ["description"] = "Status: "..msg,
     ["color"] = 65280,
     ["fields"] = {
         {
